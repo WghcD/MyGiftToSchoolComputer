@@ -243,6 +243,31 @@ void InstallHooks() {
     WriteJump64((void*)OriginalNtOpenFile, (void*)NtOpenFile_Hook);
 }
 
+// 获取当前宿主进程的映像名（如 "notepad.exe"）
+// 返回值为静态宽字符缓冲区指针，调用者无需释放
+const WCHAR* GetHostProcessImageName() {
+    static WCHAR imageName[MAX_PATH] = {0};
+    // 若已获取过，直接返回缓存结果（进程映像名在运行期间不变）
+    if (imageName[0] != L'\0') {
+        return imageName;
+    }
+
+    WCHAR fullPath[MAX_PATH];
+    DWORD length = GetModuleFileNameW(NULL, fullPath, MAX_PATH);
+    if (length == 0 || length >= MAX_PATH) {
+        return L"unknown";
+    }
+
+    // 从完整路径中提取文件名部分
+    WCHAR* p = fullPath + length;
+    while (p > fullPath && *(p - 1) != L'\\' && *(p - 1) != L'/') {
+        --p;
+    }
+    wcscpy(imageName, p);
+	//MessageBoxW(NULL, imageName, L"Host Process Image", MB_OK | MB_ICONINFORMATION);
+    return imageName;
+}
+
 void RemoveHooks() {
     if (OriginalNtOpenProcess) RestoreBytes64((void*)OriginalNtOpenProcess, g_OrigBytesNtOpenProcess);
     if (OriginalNtCreateFile) RestoreBytes64((void*)OriginalNtCreateFile, g_OrigBytesNtCreateFile);
@@ -252,9 +277,19 @@ void RemoveHooks() {
 // ================== DllMain ==================
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
     switch (fdwReason) {
-    case DLL_PROCESS_ATTACH:
-        InstallHooks();
-        break;
+    case DLL_PROCESS_ATTACH:{
+		
+	const WCHAR* imageName = GetHostProcessImageName();
+	if (wcscmp(imageName, L"expllorer.exe") == 0 ||
+		wcscmp(imageName, L"ProgrammBanner.exe") == 0 ||
+		wcscmp(imageName, L"FileGuard.exe") == 0)
+	{
+		break;   // 仅在循环内使用
+	}
+		
+    InstallHooks();
+    break;
+	}
     case DLL_PROCESS_DETACH:
         RemoveHooks();
         break;
