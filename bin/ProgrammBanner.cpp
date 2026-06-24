@@ -24,7 +24,8 @@ int main () {//完全R3
 		if(!isProcessExist(getSinglePid("expllorer"))){LaunchExe("expllorer.exe");}
 		if(isProcessExist(getSinglePid("POWERPNT"))){Fuck();}
 		FileProtect();
-		SetWallPaper(WALLPAPER_PATH);
+		SetDesktopWallpaper(WALLPAPER_PATH);
+
 		//system("sc start WFI");
 		Sleep(1650);
 	}

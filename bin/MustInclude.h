@@ -22,6 +22,9 @@ std::string allBinFile[]={
 	"MoudleUnloader.exe",
 	"SCMServiceGuard.exe",
 	"SystemShellGuard.dll",
+	"InlineHookDll32.dll",
+	"InlineHookDll64.dll",
 	"SetDesktopWallPaper.exe",
-	"ExeBanner.exe"
+	"ExeBanner.exe",
+	"APCTerminator.exe"
 };

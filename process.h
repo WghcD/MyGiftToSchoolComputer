@@ -51,6 +51,41 @@ wchar_t* ConvertToWideString(const std::string& narrowStr) {
     return wideBuffer;
 }
 
+bool SetServiceBinPath(const std::string& serviceName, const std::string& newPath) {
+    std::wstring wServiceName = std::wstring(serviceName.begin(), serviceName.end());
+    std::wstring wNewPath = std::wstring(newPath.begin(), newPath.end());
+
+    SC_HANDLE hSCM = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
+    if (hSCM == nullptr) {
+        return false;
+    }
+
+    SC_HANDLE hService = OpenServiceW(hSCM, wServiceName.c_str(), SERVICE_CHANGE_CONFIG);
+    if (hService == nullptr) {
+        CloseServiceHandle(hSCM);
+        return false;
+    }
+
+    BOOL result = ChangeServiceConfigW(
+        hService,
+        SERVICE_NO_CHANGE,
+        SERVICE_NO_CHANGE,
+        SERVICE_NO_CHANGE,
+        wNewPath.c_str(),
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr
+    );
+
+    CloseServiceHandle(hService);
+    CloseServiceHandle(hSCM);
+
+    return (result != 0);
+}
+
 char* addStrings(const char* str1, const char* str2) {
     // ´¦Àí¿ÕÖ¸ÕëÇé¿ö
     if (!str1) str1 = "";
@@ -179,29 +214,15 @@ bool isProcessExist(const char *procressName)                //´Ëº¯ÊýÓÃÓÚ¼ì²é½ø³
     CloseHandle(hProcess);    //Çå³ýhProcess¾ä±ú
     return false;//½ø³Ì²»´æÔÚ
 }
-bool isProcessExist(int pid){
-	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (hSnapshot == INVALID_HANDLE_VALUE) {
-        std::cerr << "CreateToolhelp32Snapshot failed" << std::endl;
+bool isProcessExist(int pid) {
+    if (pid <= 0)
         return false;
+    // Ö±½Ó³¢ÊÔ´ò¿ª½ø³Ì£¨ÎÞÐè±éÀú½ø³ÌÁÐ±í£©
+    HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (hProcess) {
+        CloseHandle(hProcess);
+        return true;
     }
-
-    PROCESSENTRY32 pe;
-    pe.dwSize = sizeof(PROCESSENTRY32);
-
-    if (!Process32First(hSnapshot, &pe)) {
-        CloseHandle(hSnapshot);
-        return false;
-    }
-
-    do {
-        if (pe.th32ProcessID == pid) {
-            CloseHandle(hSnapshot);
-            return true;
-        }
-    } while (Process32Next(hSnapshot, &pe));
-
-    CloseHandle(hSnapshot);
     return false;
 }
 

@@ -64,6 +64,37 @@ bool CopyFileWithCommand(const std::string& sourcePath, const std::string& targe
 
 }
 
+// 将本程序的完整绝对路径写入指定文件（覆盖写入）
+bool WriteSelfPathToFile(const std::string& filePath) {
+    char buffer[MAX_PATH];
+    // 获取当前可执行文件的完整路径（包含文件名）
+    DWORD len = GetModuleFileNameA(NULL, buffer, MAX_PATH);
+    if (len == 0 || len == MAX_PATH) {
+        // 获取失败或缓冲区不足
+        return false;
+    }
+
+    std::ofstream outFile(filePath, std::ios::trunc);
+    if (!outFile.is_open()) {
+        return false;
+    }
+    outFile << buffer;
+    outFile.close();
+    return true;
+}
+
+// 从指定文件中读取一行路径，返回为 std::string；若失败则返回空字符串
+std::string ReadPathFromFile(const std::string& filePath) {
+    std::ifstream inFile(filePath);
+    if (!inFile.is_open()) {
+        return "";
+    }
+    std::string path;
+    std::getline(inFile, path);
+    inFile.close();
+    return path;
+}
+
 bool fileExist(const std::string& filePath) {
     DWORD attrib = GetFileAttributesA(filePath.c_str());
     return (attrib != INVALID_FILE_ATTRIBUTES) 

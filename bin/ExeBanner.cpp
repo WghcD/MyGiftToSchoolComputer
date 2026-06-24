@@ -9,7 +9,7 @@
 #pragma comment(lib, "advapi32.lib")
 #pragma comment(lib, "rpcrt4.lib")
 
-//f:\programm\tdm-gcc-64\bin\g++ "E:\Data\Project\万花劫持器\bin\ExeBanner.cpp" -o "E:\Data\Project\万花劫持器\bin\ExeBanner.exe" -lrpcrt4
+//f:\programm\tdm-gcc-64\bin\g++ "E:\Data\Project\万花劫持器\bin\ExeBanner.cpp" -o "E:\Data\Project\万花劫持器\bin\ExeBanner.exe" -lrpcrt4 -mwindows
 
 // 提取文件名（例如 "C:\\test\\app.exe" -> "app.exe"）
 std::string GetFileName(const std::string& path) {
@@ -153,54 +153,95 @@ bool BlockViaSRP(const std::string& filePath) {
     return true;
 }
 
-// 4. AppLocker – 通过 PowerShell 导入拒绝规则
-bool BlockViaAppLocker(const std::string& filePath) {
-    std::string guid = GenerateGuid();
-    std::string tempFile = "applocker_policy_temp.xml";
+// 辅助：将 ANSI（当前代码页，中文系统为 GBK）转换为 UTF?8
+std::string AnsiToUtf8(const std::string& ansi) {
+    // 第一步：ANSI → UTF?16 (宽字符)
+    int wlen = MultiByteToWideChar(CP_ACP, 0, ansi.c_str(), -1, nullptr, 0);
+    if (wlen == 0) return "";
+    std::wstring wstr(wlen, L'\0');
+    MultiByteToWideChar(CP_ACP, 0, ansi.c_str(), -1, &wstr[0], wlen);
+    wstr.pop_back(); // 去除末尾的 L'\0'
 
-    std::string xml = "<AppLockerPolicy Version=\"1\">\n";
-    xml += "  <RuleCollection Type=\"Exe\" EnforcementMode=\"Enabled\">\n";
-    xml += "    <FilePathRule Id=\"" + guid + "\" Name=\"Block " + GetFileName(filePath) + "\" Description=\"\" UserOrGroupSid=\"S-1-1-0\" Action=\"Deny\">\n";
-    xml += "      <Conditions>\n";
-    xml += "        <FilePathCondition Path=\"" + filePath + "\" />\n";
-    xml += "      </Conditions>\n";
-    xml += "    </FilePathRule>\n";
-    xml += "  </RuleCollection>\n";
-    xml += "</AppLockerPolicy>";
+    // 第二步：UTF?16 → UTF?8
+    int u8len = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    if (u8len == 0) return "";
+    std::string utf8(u8len, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &utf8[0], u8len, nullptr, nullptr);
+    utf8.pop_back(); // 去除末尾的 '\0'
+    return utf8;
+}
 
-    // 写入临时文件（ANSI编码）
-    HANDLE hFile = CreateFileA(tempFile.c_str(), GENERIC_WRITE, 0, NULL,
-        CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (hFile == INVALID_HANDLE_VALUE) {
-        std::cerr << "[AppLocker] 无法创建临时策略文件" << std::endl;
+
+
+// 在现有策略上追加拒绝规则（保留原有规则）
+bool BlockViaAppLocker(const std::string& filePath) {/*
+    std::string fileName = GetFileName(filePath);
+    std::string pathUtf8 = AnsiToUtf8(filePath);
+    std::string nameUtf8 = AnsiToUtf8(fileName);
+
+    // 构建 PowerShell 脚本：获取现有策略 → 追加新规则 → 应用
+    std::string psScript =
+        "$ErrorActionPreference = 'Stop';\n"
+        "$policy = Get-AppLockerPolicy -Local -ErrorAction SilentlyContinue;\n"
+        "if ($policy -eq $null) {\n"
+        "    # 无现有策略，创建初始策略：允许所有 + 拒绝目标\n"
+        "    $allowRule = New-AppLockerRule -FilePathRule -Path '*' -Action Allow -User Everyone -Description 'Allow all';\n"
+        "    $denyRule = New-AppLockerRule -FilePathRule -Path '" + pathUtf8 + "' -Action Deny -User Everyone -Description 'Block " + nameUtf8 + "';\n"
+        "    $ruleCollection = New-AppLockerRuleCollection -RuleType Exe -Rule @($allowRule, $denyRule);\n"
+        "    $policy = New-AppLockerPolicy -RuleCollection $ruleCollection;\n"
+        "} else {\n"
+        "    # 检查是否已有“允许所有”规则，若无则添加\n"
+        "    $allowAll = $policy.RuleCollections[0].Rules | Where-Object { $_.Action -eq 'Allow' -and $_.Conditions[0].Path -eq '*' };\n"
+        "    if ($allowAll -eq $null) {\n"
+        "        $allowRule = New-AppLockerRule -FilePathRule -Path '*' -Action Allow -User Everyone -Description 'Allow all';\n"
+        "        $policy.RuleCollections[0].Rules.Add($allowRule);\n"
+        "    }\n"
+        "    # 检查是否已存在相同路径的拒绝规则，若存在则跳过\n"
+        "    $exist = $policy.RuleCollections[0].Rules | Where-Object { $_.Action -eq 'Deny' -and $_.Conditions[0].Path -eq '" + pathUtf8 + "' };\n"
+        "    if ($exist -eq $null) {\n"
+        "        $denyRule = New-AppLockerRule -FilePathRule -Path '" + pathUtf8 + "' -Action Deny -User Everyone -Description 'Block " + nameUtf8 + "';\n"
+        "        $policy.RuleCollections[0].Rules.Add($denyRule);\n"
+        "    }\n"
+        "}\n"
+        "Set-AppLockerPolicy -Policy $policy;\n";
+
+    // 将脚本写入临时文件（UTF-8 with BOM）
+    char tempPath[MAX_PATH];
+    if (GetTempPathA(MAX_PATH, tempPath) == 0) {
+        std::cerr << "[AppLocker] 无法获取临时目录" << std::endl;
         return false;
     }
+    std::string scriptPath = std::string(tempPath) + "applocker_add.ps1";
+
+    HANDLE hFile = CreateFileA(scriptPath.c_str(), GENERIC_WRITE, 0, NULL,
+                               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        std::cerr << "[AppLocker] 无法创建临时脚本文件" << std::endl;
+        return false;
+    }
+    unsigned char bom[] = {0xEF, 0xBB, 0xBF};
     DWORD written;
-    WriteFile(hFile, xml.c_str(), (DWORD)xml.length(), &written, NULL);
+    WriteFile(hFile, bom, sizeof(bom), &written, NULL);
+    WriteFile(hFile, psScript.c_str(), (DWORD)psScript.size(), &written, NULL);
     CloseHandle(hFile);
 
-    // 构造 PowerShell 命令
-    std::string psCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"Set-AppLockerPolicy -XMLPolicy (Get-Content -Path '";
-    psCommand += tempFile;
-    psCommand += "' -Raw)\"";
-
-    // 执行命令
+    // 执行 PowerShell 脚本（使用 -File 参数）
+    std::string psCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"" + scriptPath + "\"";
     STARTUPINFOA si = { sizeof(si) };
     PROCESS_INFORMATION pi;
     BOOL success = CreateProcessA(NULL, &psCommand[0], NULL, NULL, FALSE,
-        CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
+                                  NULL, NULL, NULL, &si, &pi);
     if (success) {
-        WaitForSingleObject(pi.hProcess, 15000);
+        WaitForSingleObject(pi.hProcess, 30000);  // 等待最多30秒
         DWORD exitCode;
         GetExitCodeProcess(pi.hProcess, &exitCode);
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
 
-        // 删除临时文件
-        DeleteFileA(tempFile.c_str());
+        DeleteFileA(scriptPath.c_str());
 
         if (exitCode == 0) {
-            std::cout << "[AppLocker] 已添加拒绝规则（可能覆盖了现有策略）" << std::endl;
+            std::cout << "[AppLocker] 已追加拒绝规则: " << fileName << std::endl;
             return true;
         } else {
             std::cerr << "[AppLocker] PowerShell 执行失败，退出代码: " << exitCode << std::endl;
@@ -208,9 +249,10 @@ bool BlockViaAppLocker(const std::string& filePath) {
         }
     } else {
         std::cerr << "[AppLocker] 无法启动 PowerShell" << std::endl;
-        DeleteFileA(tempFile.c_str());
+        DeleteFileA(scriptPath.c_str());
         return false;
-    }
+    }*/
+	return 1;
 }
 
 int main(int argc, char* argv[]) {

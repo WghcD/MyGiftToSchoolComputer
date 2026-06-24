@@ -1,0 +1,2 @@
+f:\programm\tdm-gcc-64\bin\gcc "E:\Data\Project\万花劫持器\bin\InlineHookDll32.cpp" -m32 -shared -o "E:\Data\Project\万花劫持器\bin\InlineHookDll32.dll" -lntdll -lkernel32
+f:\programm\tdm-gcc-64\bin\gcc  "E:\Data\Project\万花劫持器\bin\InlineHookDll64.cpp" -shared -o "E:\Data\Project\万花劫持器\bin\InlineHookDll64.dll" -lntdll -lkernel32

@@ -22,14 +22,7 @@ std::map<std::string, std::vector<BYTE>> g_RegistryBackup;
 
 
 
-DWORD WINAPI MonitorThread(LPVOID lpParam){
-	OutputDebugStringA("Service Moniter Thread Started.");
-	while(1){
-		FileProtect();
-		Sleep(4000);
-	}
-	return 0;
-}
+
 
 
 // 递归备份注册表项 (ANSI)

